@@ -1,8 +1,8 @@
 // Infonary ICT Question Bank — Supabase adapter
 // Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in index.html.
 // Never put a secret/service_role key in browser code.
-const SUPABASE_URL = "PASTE_PROJECT_URL_HERE";
-const SUPABASE_PUBLISHABLE_KEY = "PASTE_PUBLISHABLE_KEY_HERE";
+const SUPABASE_URL = "https://eubjdemuuttdmrcditmw.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_tAXyADzfVb-xOTNUx02Xpg_dsCrl8Dt";
 const QUESTIONS_ENDPOINT = `${SUPABASE_URL}/rest/v1/questions`;
 
 function supaHeaders(extra = {}) {
