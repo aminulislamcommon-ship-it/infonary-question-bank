@@ -124,4 +124,47 @@ $('importBtn').addEventListener('click',()=>$('importFile').click());$('importFi
 $('resetAll').addEventListener('click',()=>{if(confirm('সব স্থানীয় প্রশ্ন ও প্রশ্নপত্র মুছে ফেলবেন? এই কাজ ফেরানো যাবে না।')){questions=[];papers=[];selected.clear();localStorage.removeItem(KEY);localStorage.removeItem(PAPERKEY);renderAll();toast('স্থানীয় ডেটা মুছে ফেলা হয়েছে')}});
 renderAll();
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  const SUPABASE_URL = "https://eubjdemuuttdmrcditmw.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_tAXyADzfVb-xOTNUx02Xpg_dsCrl8Dt";
+
+  const client = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+  const loginButton = document.createElement("button");
+  loginButton.textContent = "শিক্ষক লগইন";
+  loginButton.style.cssText =
+    "padding:10px 14px;border:0;border-radius:8px;cursor:pointer;background:#2463eb;color:white;margin:8px";
+
+  document.querySelector(".top-actions").appendChild(loginButton);
+
+  loginButton.onclick = async function () {
+    const email = prompt("শিক্ষকের ইমেইল দিন:");
+    if (!email) return;
+
+    const password = prompt("পাসওয়ার্ড দিন:");
+    if (!password) return;
+
+    const { data, error } = await client.auth.signInWithPassword({
+      email: email.trim(),
+      password: password
+    });
+
+    if (error) {
+      alert("লগইন ব্যর্থ: " + error.message);
+      return;
+    }
+
+    alert("শিক্ষক লগইন সফল হয়েছে!");
+    loginButton.textContent = "লগইন করা হয়েছে";
+  };
+
+  window.infonarySupabase = client;
+})();
+</script>
 </body></html>
