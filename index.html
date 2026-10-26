@@ -92,7 +92,7 @@
 <div class="toast" id="toast"></div>
 <script>
 const KEY='infonary_ict_questions_v1', PAPERKEY='infonary_ict_papers_v1';
-let questions=load(KEY,[]), papers=load(PAPERKEY,[]), selected=new Set();
+let questions=load(KEY,[]), papers=load(PAPERKEY,[]), selected=new Set(), editingQuestionId=null;
 const $=id=>document.getElementById(id);
 function load(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch(e){return f}}
 function save(){localStorage.setItem(KEY,JSON.stringify(questions));renderAll()}
@@ -105,16 +105,16 @@ document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',(
 $('menuBtn').addEventListener('click',()=>$('sidebar').classList.toggle('open'));
 function toggleType(){const is=$('qtype').value==='MCQ';$('mcqFields').classList.toggle('hide',!is)}
 $('qtype').addEventListener('change',toggleType);toggleType();
-$('questionForm').addEventListener('submit',e=>{e.preventDefault();const q={id:Date.now().toString(),grade:$('grade').value,subject:$('subject').value.trim(),chapter:$('chapter').value.trim(),type:$('qtype').value,text:$('questionText').value.trim(),options:$('qtype').value==='MCQ'?[$('optA').value.trim(),$('optB').value.trim(),$('optC').value.trim(),$('optD').value.trim()]:[],correct:$('correct').value,marks:Number($('marks').value)||1,difficulty:$('difficulty').value,answer:$('answer').value.trim(),created:new Date().toISOString()};questions.unshift(q);save();e.target.reset();$('subject').value='ICT';$('grade').value='HSC';$('marks').value='1';toggleType();toast('প্রশ্ন সফলভাবে সংরক্ষণ হয়েছে');go('bank')});
+$('questionForm').addEventListener('submit',async e=>{e.preventDefault();const q={id:editingQuestionId||Date.now().toString(),grade:$('grade').value,subject:$('subject').value.trim(),chapter:$('chapter').value.trim(),type:$('qtype').value,text:$('questionText').value.trim(),options:$('qtype').value==='MCQ'?[$('optA').value.trim(),$('optB').value.trim(),$('optC').value.trim(),$('optD').value.trim()]:[],correct:$('correct').value,marks:Number($('marks').value)||1,difficulty:$('difficulty').value,answer:$('answer').value.trim(),created:new Date().toISOString()};const existingIndex=questions.findIndex(x=>x.id===q.id);if(existingIndex>=0)questions[existingIndex]=q;else questions.unshift(q);save();try{if(window.infonaryCloudSave){const cloudQ=await window.infonaryCloudSave(q);if(cloudQ&&cloudQ.id){const ix=questions.findIndex(x=>x.id===q.id);if(ix>=0)questions[ix]=cloudQ;save();}}}catch(err){toast('স্থানীয়ভাবে সংরক্ষিত; Cloud-এ পাঠানো যায়নি: '+(err.message||'ত্রুটি'))}editingQuestionId=null;e.target.reset();$('subject').value='ICT';$('grade').value='HSC';$('marks').value='1';toggleType();toast('প্রশ্ন সংরক্ষণ হয়েছে');go('bank')});
 function typeName(t){return t==='MCQ'?'MCQ':t==='CQ'?'সৃজনশীল':'সংক্ষিপ্ত'}
 function renderAll(){ $('statTotal').textContent=questions.length;$('statMcq').textContent=questions.filter(q=>q.type==='MCQ').length;$('statCq').textContent=questions.filter(q=>q.type==='CQ').length;$('statPapers').textContent=papers.length;renderRecent();renderBank();renderPaper();renderStudents()}
 function renderRecent(){const el=$('recentList');if(!questions.length){el.innerHTML='<div class="empty">এখনো কোনো প্রশ্ন যোগ করা হয়নি।</div>';return}el.innerHTML=questions.slice(0,4).map(q=>`<div class="listrow"><div class="docicon">▤</div><div><b>${esc(q.text.slice(0,58))}${q.text.length>58?'…':''}</b><small>${esc(q.subject)} · ${esc(q.chapter)} · ${typeName(q.type)}</small></div><span class="push badge">${q.marks} নম্বর</span></div>`).join('')}
 function renderBank(){const search=($('bankSearch')?.value||$('globalSearch')?.value||'').toLowerCase(), type=$('typeFilter')?.value||'',sub=$('subjectFilter')?.value||'';const arr=questions.filter(q=>(!search||(q.text+' '+q.chapter+' '+q.subject).toLowerCase().includes(search))&&(!type||q.type===type)&&(!sub||q.subject===sub));$('bankRows').innerHTML=arr.map(q=>`<tr><td><b>${esc(q.text)}</b>${q.type==='MCQ'?`<div class="panel-desc">ক) ${esc(q.options?.[0]||'—')} · খ) ${esc(q.options?.[1]||'—')}</div>`:''}</td><td>${esc(q.subject)}<div class="panel-desc">${esc(q.chapter)} · ${esc(q.grade)}</div></td><td><span class="badge">${typeName(q.type)}</span></td><td>${q.marks}</td><td><button class="outline" onclick="editQ('${q.id}')">সম্পাদনা</button> <button class="outline" onclick="deleteQ('${q.id}')">মুছুন</button></td></tr>`).join('');$('bankEmpty').classList.toggle('hide',arr.length>0)}
-function editQ(id){const q=questions.find(x=>x.id===id);if(!q)return;go('add');$('grade').value=q.grade;$('subject').value=q.subject;$('chapter').value=q.chapter;$('qtype').value=q.type;$('questionText').value=q.text;$('optA').value=q.options?.[0]||'';$('optB').value=q.options?.[1]||'';$('optC').value=q.options?.[2]||'';$('optD').value=q.options?.[3]||'';$('correct').value=q.correct||'ক';$('marks').value=q.marks;$('difficulty').value=q.difficulty;$('answer').value=q.answer||'';questions=questions.filter(x=>x.id!==id);save();toggleType();toast('সম্পাদনার জন্য প্রশ্ন ফর্মে নেওয়া হয়েছে; সংরক্ষণ করলে আপডেট হবে')}
-function deleteQ(id){if(confirm('এই প্রশ্নটি মুছে ফেলবেন?')){questions=questions.filter(q=>q.id!==id);selected.delete(id);save();toast('প্রশ্ন মুছে ফেলা হয়েছে')}}
+function editQ(id){const q=questions.find(x=>x.id===id);if(!q)return;editingQuestionId=id;go('add');$('grade').value=q.grade;$('subject').value=q.subject;$('chapter').value=q.chapter;$('qtype').value=q.type;$('questionText').value=q.text;$('optA').value=q.options?.[0]||'';$('optB').value=q.options?.[1]||'';$('optC').value=q.options?.[2]||'';$('optD').value=q.options?.[3]||'';$('correct').value=q.correct||'ক';$('marks').value=q.marks;$('difficulty').value=q.difficulty;$('answer').value=q.answer||'';toggleType();toast('সম্পাদনার জন্য প্রশ্ন ফর্মে নেওয়া হয়েছে; সংরক্ষণ করলে আপডেট হবে')}
+async function deleteQ(id){if(confirm('এই প্রশ্নটি মুছে ফেলবেন?')){questions=questions.filter(q=>q.id!==id);selected.delete(id);save();try{if(window.infonaryCloudDelete)await window.infonaryCloudDelete(id);toast('প্রশ্ন মুছে ফেলা হয়েছে')}catch(err){toast('স্থানীয়ভাবে মুছে গেছে; Cloud থেকে মুছতে সমস্যা: '+(err.message||'ত্রুটি'))}}}
 $('bankSearch').addEventListener('input',renderBank);$('typeFilter').addEventListener('change',renderBank);$('subjectFilter').addEventListener('change',renderBank);$('globalSearch').addEventListener('input',()=>{go('bank');$('bankSearch').value=$('globalSearch').value;renderBank()});
 function renderPaper(){const list=$('paperQuestionList');if(!list)return;list.innerHTML=questions.map(q=>`<label class="question-select"><input type="checkbox" ${selected.has(q.id)?'checked':''} data-qid="${q.id}" style="margin-top:4px"><span><b>${esc(q.text.slice(0,100))}</b><small>${esc(q.chapter)} · ${typeName(q.type)} · ${q.marks} নম্বর</small></span></label>`).join('')||'<div class="empty">প্রথমে প্রশ্নব্যাংকে প্রশ্ন যোগ করুন।</div>';list.querySelectorAll('[data-qid]').forEach(c=>c.addEventListener('change',()=>{c.checked?selected.add(c.dataset.qid):selected.delete(c.dataset.qid);renderPaperPreview()}));renderPaperPreview()}
-function renderPaperPreview(){const qs=questions.filter(q=>selected.has(q.id));$('selectedCount').textContent=qs.length+' নির্বাচিত';let marks=qs.reduce((s,q)=>s+q.marks,0);$('paperPreview').innerHTML=`<h2>${esc($('institution').value||'Infonary ICT')}</h2><h3>${esc($('paperTitle').value||'প্রশ্নপত্র')}</h3><div class="meta">সময়: ${esc($('duration').value||'—')} | নির্বাচিত প্রশ্নের মোট নম্বর: ${marks}</div>`+(qs.length?qs.map((q,i)=>`<div style="margin:20px 0"><b>${i+1}. ${esc(q.text)} (${q.marks})</b>${q.type==='MCQ'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0">${(q.options||[]).map((o,j)=>`<span>${['ক','খ','গ','ঘ'][j]}. ${esc(o||'—')}</span>`).join('')}</div>`:''}${q.type==='CQ'?'<div style="margin:10px 0 0 14px;line-height:1.9">ক. সংজ্ঞা দাও।<br>খ. ব্যাখ্যা করো।<br>গ. প্রয়োগ দেখাও।<br>ঘ. বিশ্লেষণ করো।</div>':''}</div>`).join(''):'<p class="empty">প্রশ্নপত্র তৈরি করতে বাম পাশ থেকে প্রশ্ন নির্বাচন করুন।</p>'}
+function renderPaperPreview(){const qs=questions.filter(q=>selected.has(q.id));$('selectedCount').textContent=qs.length+' নির্বাচিত';const marks=qs.reduce((sum,q)=>sum+q.marks,0);let html=`<h2>${esc($('institution').value||'Infonary ICT')}</h2><h3>${esc($('paperTitle').value||'প্রশ্নপত্র')}</h3><div class="meta">সময়: ${esc($('duration').value||'—')} | নির্বাচিত প্রশ্নের মোট নম্বর: ${marks}</div>`;if(!qs.length){html+='<p class="empty">প্রশ্নপত্র তৈরি করতে বাম পাশ থেকে প্রশ্ন নির্বাচন করুন।</p>';}else{qs.forEach((q,i)=>{html+=`<div style="margin:20px 0"><b>${i+1}. ${esc(q.text)} (${q.marks})</b>`;if(q.type==='MCQ'){html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0">${(q.options||[]).map((o,j)=>`<span>${['ক','খ','গ','ঘ'][j]}. ${esc(o||'—')}</span>`).join('')}</div>`;}if(q.type==='CQ'){html+='<div style="margin:10px 0 0 14px;line-height:1.9">ক. সংজ্ঞা দাও।<br>খ. ব্যাখ্যা করো।<br>গ. প্রয়োগ দেখাও।<br>ঘ. বিশ্লেষণ করো।</div>';}html+='</div>';});}$('paperPreview').innerHTML=html;}
 ['paperTitle','institution','duration','totalMarks'].forEach(id=>$(id).addEventListener('input',renderPaperPreview));
 $('selectAll').addEventListener('click',()=>{questions.forEach(q=>selected.add(q.id));renderPaper()});$('clearSelected').addEventListener('click',()=>{selected.clear();renderPaper()});
 $('printPaper').addEventListener('click',()=>{if(!selected.size){toast('প্রথমে অন্তত 1টি প্রশ্ন নির্বাচন করুন');return}papers.push({title:$('paperTitle').value,date:new Date().toISOString(),count:selected.size});localStorage.setItem(PAPERKEY,JSON.stringify(papers));renderAll();window.print()});
@@ -130,41 +130,93 @@ renderAll();
 (function () {
   const SUPABASE_URL = "https://eubjdemuuttdmrcditmw.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_tAXyADzfVb-xOTNUx02Xpg_dsCrl8Dt";
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  let currentUser = null;
+  const actions = document.querySelector('.top-actions');
+  const status = document.createElement('span');
+  status.id = 'cloudStatus';
+  status.style.cssText = 'font-size:12px;color:#64748b;white-space:nowrap';
+  status.textContent = 'Cloud: লগইন হয়নি';
+  const loginButton = document.createElement('button');
+  loginButton.id = 'teacherLoginButton';
+  loginButton.textContent = 'শিক্ষক লগইন';
+  loginButton.style.cssText = 'padding:10px 14px;border:0;border-radius:8px;cursor:pointer;background:#2463eb;color:white;margin:8px';
+  actions.append(status, loginButton);
 
-  const client = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
-  );
-
-  const loginButton = document.createElement("button");
-  loginButton.textContent = "শিক্ষক লগইন";
-  loginButton.style.cssText =
-    "padding:10px 14px;border:0;border-radius:8px;cursor:pointer;background:#2463eb;color:white;margin:8px";
-
-  document.querySelector(".top-actions").appendChild(loginButton);
-
-  loginButton.onclick = async function () {
-    const email = prompt("শিক্ষকের ইমেইল দিন:");
-    if (!email) return;
-
-    const password = prompt("পাসওয়ার্ড দিন:");
-    if (!password) return;
-
-    const { data, error } = await client.auth.signInWithPassword({
-      email: email.trim(),
-      password: password
-    });
-
-    if (error) {
-      alert("লগইন ব্যর্থ: " + error.message);
+  const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+  function fromRow(row) {
+    return {id:row.id,grade:row.grade||'HSC',subject:row.subject||'ICT',chapter:row.chapter||'',type:row.question_type||'MCQ',text:row.question_text||'',options:Array.isArray(row.options)?row.options:[],correct_answer:undefined,correct:row.correct_answer||'ক',marks:Number(row.marks)||1,difficulty:row.difficulty||'সাধারণ',answer:row.explanation||'',created:row.created_at||new Date().toISOString()};
+  }
+  function toRow(q, ownerId) {
+    const row={owner_id:ownerId,grade:q.grade||'HSC',subject:q.subject||'ICT',chapter:q.chapter||'',topic:null,question_type:q.type||'MCQ',question_text:q.text||'',options:Array.isArray(q.options)?q.options:[],correct_answer:q.correct||'ক',marks:Number(q.marks)||1,difficulty:q.difficulty||'সাধারণ',explanation:q.answer||''};
+    if(isUuid(q.id)) row.id=q.id;
+    return row;
+  }
+  async function cloudSave(q) {
+    if(!currentUser) return null;
+    const payload=toRow(q,currentUser.id);
+    let result;
+    if(isUuid(q.id)) result=await client.from('questions').update(payload).eq('id',q.id).select().single();
+    else result=await client.from('questions').insert(payload).select().single();
+    if(result.error) throw result.error;
+    return fromRow(result.data);
+  }
+  async function cloudDelete(id) {
+    if(!currentUser || !isUuid(id)) return;
+    const {error}=await client.from('questions').delete().eq('id',id);
+    if(error) throw error;
+  }
+  async function loadCloudQuestions() {
+    if(!currentUser) return;
+    status.textContent='Cloud: প্রশ্ন লোড হচ্ছে…';
+    const {data,error}=await client.from('questions').select('*').order('created_at',{ascending:false});
+    if(error) throw error;
+    const cloudQuestions=(data||[]).map(fromRow);
+    const localQuestions=[...questions];
+    const cloudIds=new Set(cloudQuestions.map(q=>q.id));
+    questions=cloudQuestions;
+    for(const localQ of localQuestions) {
+      if(isUuid(localQ.id) && cloudIds.has(localQ.id)) continue;
+      const saved=await cloudSave(localQ);
+      if(saved) { questions.unshift(saved); cloudIds.add(saved.id); }
+    }
+    localStorage.setItem(KEY,JSON.stringify(questions));
+    renderAll();
+    status.textContent='Cloud: সংযুক্ত';
+    toast('Supabase থেকে প্রশ্ন লোড/সিঙ্ক হয়েছে');
+  }
+  loginButton.onclick=async function() {
+    if(currentUser) {
+      const {error}=await client.auth.signOut();
+      if(error){alert('Logout ব্যর্থ: '+error.message);return;}
+      currentUser=null;
+      loginButton.textContent='শিক্ষক লগইন';
+      status.textContent='Cloud: লগইন হয়নি';
+      toast('লগআউট হয়েছে');
       return;
     }
-
-    alert("শিক্ষক লগইন সফল হয়েছে!");
-    loginButton.textContent = "লগইন করা হয়েছে";
+    const email=prompt('শিক্ষকের ইমেইল দিন:'); if(!email) return;
+    const password=prompt('পাসওয়ার্ড দিন:'); if(!password) return;
+    const {data,error}=await client.auth.signInWithPassword({email:email.trim(),password});
+    if(error){alert('লগইন ব্যর্থ: '+error.message);return;}
+    currentUser=data.user;
+    loginButton.textContent='লগআউট';
+    status.textContent='Cloud: সংযুক্ত হচ্ছে…';
+    try { await loadCloudQuestions(); }
+    catch(err) { status.textContent='Cloud: ত্রুটি'; alert('লগইন হয়েছে, কিন্তু প্রশ্ন লোড হয়নি: '+(err.message||'ত্রুটি')+'\nSupabase table, RLS policy ও network পরীক্ষা করুন।'); }
   };
-
-  window.infonarySupabase = client;
+  client.auth.getSession().then(async ({data,error})=>{
+    if(error) return;
+    if(data.session) {
+      currentUser=data.session.user;
+      loginButton.textContent='লগআউট';
+      try { await loadCloudQuestions(); }
+      catch(err) { status.textContent='Cloud: ত্রুটি'; console.error('Supabase load failed:',err); }
+    }
+  });
+  window.infonarySupabase=client;
+  window.infonaryCloudSave=cloudSave;
+  window.infonaryCloudDelete=cloudDelete;
 })();
 </script>
 </body></html>
